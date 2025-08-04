@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>NoteMaster - A Modern Web Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13/dist/markdown-it.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    
+    <!-- PrismJS for Syntax Highlighting (JS only) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+
+    <style>
+        /* --- CSS STYLES --- */
+        
+        /* Theming and Variables */
+        :root {
+            --bg: #ffffff; --fg: #111827; --header-bg: #ffffff; --border-color: #e5e7eb;
+            --accent: #3b82f6; --accent-fg: #ffffff; --radius: 8px; --tab-bg: #f3f4f6;
+            --tab-fg: #4b5563; --tab-active-bg: var(--accent); --tab-active-fg: var(--accent-fg);
+            --modal-bg: #ffffff; --modal-overlay: rgba(0, 0, 0, 0.4);
+            --editor-bg: #ffffff; --line-number-color: #9ca3af; --button-secondary-bg: #f3f4f6;
+            --button-secondary-fg: #374151; --syntax-bg: #f9fafb; --syntax-fg: #374151;
+            --selection-bg: color-mix(in srgb, var(--accent) 30%, transparent);
+        }
+        body.dark {
+            --bg: #1f2937; --fg: #d1d5db; --header-bg: #111827; --border-color: #374151;
+            --accent: #60a5fa; --tab-bg: #374151; --tab-fg: #9ca3af; --modal-bg: #1f2937;
+            --editor-bg: #111827; --line-number-color: #6b7280; --button-secondary-bg: #374151;
+            --button-secondary-fg: #d1d5db; --syntax-bg: #111827; --syntax-fg: #d1d5db;
+            --selection-bg: color-mix(in srgb, var(--accent) 40%, transparent);
+        }
+
+        /* Self-Contained PrismJS Theme */
+        code[class*="language-"], pre[class*="language-"] { text-align: left; white-space: pre; word-spacing: normal; word-break: normal; word-wrap: normal; -moz-tab-size: 4; -o-tab-size: 4; tab-size: 4; -webkit-hyphens: none; -moz-hyphens: none; -ms-hyphens: none; hyphens: none; }
+        :not(body.dark) pre[class*="language-"] { color: var(--syntax-fg); }
+        :not(body.dark) .token.comment, :not(body.dark) .token.prolog, :not(body.dark) .token.doctype, :not(body.dark) .token.cdata { color: #9ca3af; }
+        :not(body.dark) .token.punctuation { color: #9ca3af; }
+        :not(body.dark) .token.property, :not(body.dark) .token.tag, :not(body.dark) .token.boolean, :not(body.dark) .token.number, :not(body.dark) .token.constant, :not(body.dark) .token.symbol { color: #9333ea; }
+        :not(body.dark) .token.selector, :not(body.dark) .token.attr-name, :not(body.dark) .token.string, :not(body.dark) .token.char, :not(body.dark) .token.builtin, :not(body.dark) .token.inserted { color: #16a34a; }
+        :not(body.dark) .token.atrule, :not(body.dark) .token.attr-value, :not(body.dark) .token.keyword { color: #2563eb; }
+        :not(body.dark) .token.function, :not(body.dark) .token.class-name { color: #c026d3; }
+        :not(body.dark) .token.regex, :not(body.dark) .token.important, :not(body.dark) .token.variable { color: #db2777; }
+        :not(body.dark) .token.important, :not(body.dark) .token.bold { font-weight: bold; }
+        :not(body.dark) .token.italic { font-style: italic; }
+        body.dark pre[class*="language-"] { color: var(--syntax-fg); }
+        body.dark .token.comment, body.dark .token.prolog, body.dark .token.doctype, body.dark .token.cdata { color: #9ca3af; }
+        body.dark .token.punctuation { color: #9ca3af; }
+        body.dark .token.property, body.dark .token.tag, body.dark .token.boolean, body.dark .token.number, body.dark .token.constant, body.dark .token.symbol { color: #a78bfa; }
+        body.dark .token.selector, body.dark .token.attr-name, body.dark .token.string, body.dark .token.char, body.dark .token.builtin, body.dark .token.inserted { color: #a3e635; }
+        body.dark .token.atrule, body.dark .token.attr-value, body.dark .token.keyword { color: #7dd3fc; }
+        body.dark .token.function, body.dark .token.class-name { color: #f472b6; }
+        body.dark .token.regex, body.dark .token.important, body.dark .token.variable { color: #fb923c; }
+        body.dark .token.important, body.dark .token.bold { font-weight: bold; }
+        body.dark .token.italic { font-style: italic; }
+
+        /* Base and Layout */
+        * { box-sizing: border-box; }
+        html { transition: background-color 0.2s, color 0.2s; }
+        body { margin: 0; background: var(--bg); color: var(--fg); font-family: 'Inter', sans-serif; display: flex; flex-direction: column; height: 100vh; user-select: none; overflow: hidden;}
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--header-bg); padding: 8px 16px; border-bottom: 1px solid var(--border-color); z-index: 100; flex-shrink: 0; transition: background-color 0.2s, border-color 0.2s; }
+        h1 { font-size: 20px; font-weight: 600; margin: 0; }
+        .controls { display: flex; align-items: center; gap: 8px; }
+        .control-btn { background: none; border: none; cursor: pointer; padding: 6px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; }
+        .control-btn svg { width: 20px; height: 20px; color: var(--tab-fg); }
+        .control-btn:hover { background-color: var(--tab-bg); }
+        
+        .editor-pane { display: flex; flex-direction: column; flex: 1; min-width: 0; background-color: var(--editor-bg); }
+        
+        /* Tabs */
+        .tabs-wrapper { flex-shrink: 0; }
+        .tabs { display: flex; background: var(--bg); border-bottom: 1px solid var(--border-color); gap: 4px; padding: 4px 8px; overflow-x: auto; flex-shrink: 0; align-items: center; transition: background-color 0.2s, border-color 0.2s; }
+        .tab { background: var(--tab-bg); color: var(--tab-fg); padding: 6px 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; font-size: 14px; flex-shrink: 0; max-width: 220px; border: 1px solid transparent; transition: background-color 0.2s, color 0.2s; }
+        .tab.active { background: var(--tab-active-bg); color: var(--tab-active-fg); font-weight: 600; }
+        .tab .dirty-dot { font-size: 20px; line-height: 0; color: var(--accent); margin-right: -2px; }
+        .tab.active .dirty-dot { color: var(--tab-active-fg); }
+        .tab .tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tab .close-btn { background: none; border: none; color: inherit; border-radius: 50%; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; margin-left: auto; opacity: 0.6; }
+        .tab .close-btn:hover { opacity: 1; background-color: rgba(0,0,0,0.1); }
+        
+        /* Editor Core & Final Alignment Fix */
+        main { flex: 1; display: flex; overflow: hidden; position: relative; }
+        .editor-instance { position: relative; width: 100%; height: 100%; display: flex; background-color: var(--syntax-bg); }
+        .line-numbers { width: 50px; padding: 1em 0.5em; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--line-number-color); text-align: right; line-height: 1.6; z-index: 2; border-right: 1px solid var(--border-color); transition: background-color 0.2s, color 0.2s, border-color 0.2s; overflow: hidden; }
+        .editor-wrapper { flex: 1; position: relative; overflow: hidden; }
+        
+        textarea, .highlighting { 
+            font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6; padding: 1em; margin: 0; border: 0;
+            letter-spacing: normal; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+            font-variant-ligatures: none; text-rendering: auto;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            white-space: pre; overflow-wrap: normal; overflow: auto;
+            outline: none; background: transparent;
+        }
+        textarea { z-index: 1; caret-color: var(--fg); -webkit-text-fill-color: transparent; resize: none; }
+        textarea::selection { background-color: var(--selection-bg); -webkit-text-fill-color: inherit; }
+        
+        .highlighting { z-index: 0; pointer-events: none; }
+        pre[class*="language-"] { background: transparent !important; margin: 0; padding: 0; }
+        
+        .preview { flex: 1; padding: 1em 2em; overflow-y: auto; background: var(--bg); line-height: 1.7; display:none; }
+        
+        /* Modals, Toolbars, and Status Bar */
+        #markdown-toolbar { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 10; background: var(--modal-bg); padding: 8px; border-radius: var(--radius); box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: none; gap: 4px; border: 1px solid var(--border-color); }
+        #markdown-toolbar.visible { display: flex; }
+        #markdown-toolbar button { background-color: var(--button-secondary-bg); color: var(--button-secondary-fg); padding: 6px; font-weight: bold; width: 32px; height: 32px; border:none; border-radius:var(--radius); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        #markdown-toolbar button svg { width: 20px; height: 20px; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: var(--modal-overlay); display: none; align-items: center; justify-content: center; z-index: 2000; opacity: 0; transition: opacity 0.2s; }
+        .modal-overlay.visible { display: flex; opacity: 1; }
+        .modal-dialog { background: var(--modal-bg); padding: 24px; border-radius: var(--radius); box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 420px; border: 1px solid var(--border-color); transition: background-color 0.2s, border-color 0.2s; }
+        .modal-dialog h2 { margin-top: 0; margin-bottom: 24px; font-weight: 600; font-size: 18px; }
+        .settings-group { margin-bottom: 20px; }
+        .settings-group > label { display: block; margin-bottom: 12px; font-weight: 500; font-size: 14px; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; }
+        .setting-row label { font-weight: normal; }
+        .modal-dialog select.modal-input { width: 100%; padding: 10px; border-radius: var(--radius); border: 1px solid var(--border-color); background: var(--bg); color: var(--fg); font-size: 15px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .primary-btn { background-color: var(--accent); color: var(--accent-fg); border:none; border-radius:var(--radius); padding: 8px 16px; font-weight:600; cursor:pointer;}
+        .secondary-btn { background-color: var(--button-secondary-bg); color: var(--button-secondary-fg); border:none; border-radius:var(--radius); padding: 8px 16px; font-weight:600; cursor:pointer;}
+        
+        /* Theme Settings Controls */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--tab-bg); transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .color-picker { display: flex; gap: 8px; }
+        .color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: border-color 0.2s; }
+        .color-swatch.active { border-color: var(--fg); }
+
+        /* Status Bar */
+        footer {
+            background-color: var(--header-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 4px 16px;
+            font-size: 12px;
+            color: var(--tab-fg);
+            flex-shrink: 0;
+            text-align: right;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .status-item { margin-left: 16px; }
+    </style>
+</head>
+<body>
+    <!-- --- HTML STRUCTURE --- -->
+    <header>
+        <h1>NoteMaster</h1>
+        <div class="controls">
+            <button id="open-file-btn" class="control-btn" title="Open File (Ctrl+O)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg></button>
+            <button id="add-tab-btn" class="control-btn" title="New File (Ctrl+N)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+            <button id="settings-btn" class="control-btn" title="Settings"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+        </div>
+    </header>
+
+    <div class="editor-pane">
+        <div class="tabs-wrapper"><div class="tabs"></div></div>
+        <main>
+            <div class="editor-instance">
+                <div class="line-numbers">1</div>
+                <div class="editor-wrapper">
+                    <textarea spellcheck="false"></textarea>
+                    <pre class="highlighting" aria-hidden="true"><code class="highlighting-content language-markdown"></code></pre>
+                </div>
+                <div class="preview"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="markdown-toolbar">
+        <button data-format="bold" title="Bold (Ctrl+B)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg></button>
+        <button data-format="italic" title="Italic (Ctrl+I)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"></line><line x1="14" y1="20" x2="5" y2="20"></line><line x1="15" y1="4" x2="9" y2="20"></line></svg></button>
+        <button data-format="strikethrough" title="Strikethrough"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" y1="12" x2="20" y2="12"/></svg></button>
+        <button data-format="blockquote" title="Blockquote"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6H3"/><path d="M21 12H8"/><path d="M21 18H8"/><path d="M3 12v6"/></svg></button>
+        <button data-format="hr" title="Horizontal Rule"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/></svg></button>
+    </div>
+    
+    <div id="settings-modal" class="modal-overlay">
+       <div class="modal-dialog">
+            <h2>Settings</h2>
+            <div class="settings-group">
+                <div class="setting-row">
+                    <label for="dark-mode-toggle">Dark Mode</label>
+                    <label class="switch"><input type="checkbox" id="dark-mode-toggle"><span class="slider"></span></label>
+                </div>
+            </div>
+            <div class="settings-group">
+                <label>Accent Color</label>
+                <div id="accent-color-picker" class="color-picker">
+                    <button class="color-swatch" data-color="#3b82f6" style="background: #3b82f6;"></button>
+                    <button class="color-swatch" data-color="#22c55e" style="background: #22c55e;"></button>
+                    <button class="color-swatch" data-color="#f97316" style="background: #f97316;"></button>
+                    <button class="color-swatch" data-color="#ef4444" style="background: #ef4444;"></button>
+                    <button class="color-swatch" data-color="#a855f7" style="background: #a855f7;"></button>
+                    <button class="color-swatch" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
+                </div>
+            </div>
+             <div class="settings-group">
+                <div class="setting-row">
+                    <label for="autosave-session-toggle">Auto-save Session</label>
+                    <label class="switch"><input type="checkbox" id="autosave-session-toggle"><span class="slider"></span></label>
+                </div>
+            </div>
+            <div class="modal-actions"><button type="button" id="export-pdf-btn" class="secondary-btn">Save Tab as PDF</button><button type="button" data-action="close-modal" class="primary-btn">Done</button></div>
+        </div>
+    </div>
+
+    <footer>
+        <span id="status-bar">
+            <span class="status-item"><span id="word-count">0</span> words</span>
+            <span class="status-item"><span id="char-count">0</span> characters</span>
+        </span>
+    </footer>
+    
+    <script>
+    // --- JAVASCRIPT LOGIC ---
+    document.addEventListener('DOMContentLoaded', () => {
+        let session, settings;
+        const md = window.markdownit();
+        const $ = (s) => document.querySelector(s);
+        
+        const getActiveTab = () => session.tabs.find(t => t.id === session.activeTabId);
+        
+        const init = () => {
+            loadSettings();
+            applySettings();
+            const sessionData = localStorage.getItem('notemaster_session');
+            if (settings.autoSaveSession && sessionData) {
+                loadSession(sessionData);
+            } else {
+                resetSession();
+                createWelcomeTab();
+            }
+            renderAll();
+            setupEventListeners();
+        };
+
+        const resetSession = () => {
+            session = { tabs: [], activeTabId: null };
+        };
+        
+        const createWelcomeTab = () => {
+            const welcomeTab = { 
+                id: 'welcome', 
+                title: 'Welcome.md', 
+                type: 'markdown', 
+                isWelcome: true, 
+                content: '# Welcome to NoteMaster!\n\nThis is your first note. Feel free to edit it.\n\n## Quick Guide\n\n*   **New File:** Use the `+` icon or `Ctrl+N`.\n*   **Open File:** Use the folder icon `📂` or `Ctrl+O`.\n*   **Customize:** Click the gear icon `⚙️` to change the theme and colors.\n*   **Drag & Drop:** Drop a text file from your computer to open it instantly.\n*   **Formatting:** Use the toolbar that appears below when editing a Markdown file.\n\nHappy writing!'
+            };
+            session.tabs.push(welcomeTab);
+            session.activeTabId = 'welcome';
+        };
+
+        const renderAll = () => {
+            renderTabs();
+            loadContentForActiveTab();
+            updateMarkdownToolbar();
+            if (settings.autoSaveSession) saveSession();
+        };
+
+        const renderTabs = () => {
+            const tabsContainer = $('.tabs');
+            tabsContainer.innerHTML = '';
+            session.tabs.forEach(tab => {
+                const el = document.createElement('div');
+                el.className = `tab${tab.id === session.activeTabId ? ' active' : ''}`;
+                el.dataset.id = tab.id;
+                el.innerHTML = `${tab.isDirty ? '<span class="dirty-dot">•</span>' : ''}<span class="tab-title">${tab.title}</span><button class="close-btn" data-id="${tab.id}">×</button>`;
+                tabsContainer.appendChild(el);
+            });
+        };
+
+        const loadContentForActiveTab = () => {
+            const tab = getActiveTab();
+            const editor = $('textarea');
+            const codeEl = $('.highlighting-content');
+            const lineNumbers = $('.line-numbers');
+            const preview = $('.preview');
+            const instance = $('.editor-instance');
+            
+            if (tab) {
+                instance.style.display = 'flex';
+                editor.value = tab.content;
+                codeEl.textContent = tab.content;
+                if (window.Prism) Prism.highlightElement(codeEl);
+                
+                const lineCount = tab.content.split('\n').length;
+                lineNumbers.innerHTML = Array.from({length: Math.max(1, lineCount)}, (_, i) => i + 1).join('<br>');
+                
+                preview.style.display = (tab.type === 'markdown') ? 'block' : 'none';
+                if (tab.type === 'markdown') preview.innerHTML = md.render(tab.content);
+                updateStatusBar(tab.content);
+            } else {
+                 instance.style.display = 'none';
+                 updateStatusBar('');
+            }
+        };
+        
+        const openFile = async () => {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    types: [{ description: 'Text Files', accept: { 'text/plain': ['.md', '.txt', '.markdown'] } }],
+                });
+                const file = await handle.getFile();
+                const content = await file.text();
+                openFileInNewTab(handle, content);
+            } catch (err) {
+                if (err.name !== 'AbortError') console.error("Error opening file:", err);
+            }
+        };
+
+        const updateStatusBar = (content) => {
+            const charCount = content.length;
+            const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+            $('#char-count').textContent = charCount;
+            $('#word-count').textContent = wordCount;
+        };
+
+        const formatMarkdown = (format, editor) => {
+            const start = editor.selectionStart, end = editor.selectionEnd;
+            const selected = editor.value.substring(start, end);
+            let replacement, cursorMove = 0;
+            
+            switch(format) {
+                case 'bold': replacement = `**${selected}**`; break;
+                case 'italic': replacement = `*${selected}*`; break;
+                case 'strikethrough': replacement = `~~${selected}~~`; break;
+                case 'blockquote': replacement = selected.split('\n').map(line => `> ${line}`).join('\n'); break;
+                case 'hr':
+                    replacement = '\n---\n';
+                    cursorMove = replacement.length;
+                    break;
+            }
+            if(replacement === undefined) return;
+            editor.setRangeText(replacement, start, end, 'select');
+            if (cursorMove) editor.selectionStart = editor.selectionEnd = start + cursorMove;
+            
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            editor.focus();
+        };
+        
+        const createNewFile = async () => {
+             try {
+                const handle = await window.showSaveFilePicker({ types: [{ description: 'Markdown File', accept: { 'text/markdown': ['.md'] } }] });
+                openFileInNewTab(handle, `# ${handle.name}\n`);
+            } catch (err) { if (err.name !== 'AbortError') console.error("Could not create new file:", err); }
+        };
+
+        const openFileInNewTab = (handle, content) => {
+            const fileType = handle.name.endsWith('.md') ? 'markdown' : 'text';
+            const newTab = { id: handle.name, title: handle.name, type: fileType, content, handle, isDirty: false };
+            if(session.tabs.find(t => t.id === newTab.id)) { switchTab(newTab.id); return; }
+            session.tabs.push(newTab);
+            switchTab(newTab.id);
+        };
+        
+        const closeTab = (id) => {
+            const tab = session.tabs.find(t => t.id === id);
+            if(tab?.isDirty && !confirm("You have unsaved changes. Are you sure you want to close?")) return;
+            session.tabs = session.tabs.filter(t => t.id !== id);
+            if (session.activeTabId === id) {
+                session.activeTabId = session.tabs.length > 0 ? session.tabs[session.tabs.length - 1].id : null;
+            }
+            renderAll();
+        };
+        
+        const switchTab = (id) => {
+            session.activeTabId = id;
+            renderAll();
+        };
+
+        const saveSession = () => localStorage.setItem('notemaster_session', JSON.stringify(session, (key, value) => key === 'handle' ? undefined : value));
+        const loadSession = (data) => { try { session = JSON.parse(data); } catch (err) { console.error("Failed to load session:", err); resetSession(); } };
+        const loadSettings = () => {
+            const saved = localStorage.getItem('notemaster_settings');
+            settings = saved ? JSON.parse(saved) : { darkMode: true, accentColor: '#60a5fa', autoSaveSession: false };
+        };
+        const saveSettings = () => { localStorage.setItem('notemaster_settings', JSON.stringify(settings)); applySettings(); };
+        const applySettings = () => {
+            document.body.className = settings.darkMode ? 'dark' : '';
+            document.documentElement.style.setProperty('--accent', settings.accentColor);
+            $('#dark-mode-toggle').checked = settings.darkMode;
+            $('#autosave-session-toggle').checked = settings.autoSaveSession;
+            document.querySelectorAll('#accent-color-picker .color-swatch').forEach(s => s.classList.toggle('active', s.dataset.color === settings.accentColor));
+        };
+        
+        const setupEventListeners = () => {
+            $('#open-file-btn').onclick = openFile;
+            $('#add-tab-btn').onclick = createNewFile;
+            $('#settings-btn').onclick = () => toggleModal('#settings-modal', true);
+            
+            document.body.addEventListener('click', e => {
+                if(e.target.matches('[data-action="close-modal"]')) e.target.closest('.modal-overlay').classList.remove('visible');
+                const tabEl = e.target.closest('.tab'), closeBtn = e.target.closest('.close-btn');
+                if (closeBtn) { e.stopPropagation(); closeTab(closeBtn.dataset.id); }
+                else if (tabEl) { switchTab(tabEl.dataset.id); }
+                const toolbarBtn = e.target.closest('#markdown-toolbar button');
+                if(toolbarBtn) formatMarkdown(toolbarBtn.dataset.format, $('textarea'));
+            });
+
+            $('textarea').addEventListener('input', e => {
+                const tab = getActiveTab();
+                if(tab) {
+                    tab.content = e.target.value;
+                    if (!tab.isDirty && !tab.isWelcome) tab.isDirty = true;
+                    loadContentForActiveTab();
+                    renderTabs();
+                    if (settings.autoSaveSession) saveSession();
+                }
+            });
+
+            $('textarea').addEventListener('scroll', e => {
+                const highlighter = e.target.nextElementSibling;
+                const lineNumbers = e.target.closest('.editor-instance').querySelector('.line-numbers');
+                highlighter.scrollTop = e.target.scrollTop;
+                highlighter.scrollLeft = e.target.scrollLeft;
+                lineNumbers.scrollTop = e.target.scrollTop;
+            });
+
+            window.addEventListener('keydown', e => {
+                if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.visible').forEach(m => m.classList.remove('visible'));
+                if (e.ctrlKey && e.key === 'n') { e.preventDefault(); createNewFile(); }
+                if (e.ctrlKey && e.key === 'o') { e.preventDefault(); openFile(); }
+            });
+            window.addEventListener('dragover', e => e.preventDefault());
+            window.addEventListener('drop', async e => {
+                e.preventDefault();
+                if (e.dataTransfer.items) {
+                    for (const item of e.dataTransfer.items) {
+                        if (item.kind === 'file') {
+                            const handle = await item.getAsFileSystemHandle();
+                            if(handle.kind === 'file') { const file = await handle.getFile(); openFileInNewTab(handle, await file.text()); }
+                        }
+                    }
+                }
+            });
+             
+            $('#dark-mode-toggle').onchange = e => { settings.darkMode = e.target.checked; saveSettings(); };
+            $('#autosave-session-toggle').onchange = e => { settings.autoSaveSession = e.target.checked; if(!e.target.checked) localStorage.removeItem('notemaster_session'); saveSettings(); };
+            $('#accent-color-picker').addEventListener('click', e => { const s = e.target.closest('.color-swatch'); if(s) { settings.accentColor = s.dataset.color; saveSettings(); } });
+            $('#export-pdf-btn').onclick = () => { 
+                const tab = getActiveTab(); 
+                if (!tab || tab.type !== 'markdown') return alert("Only Markdown files can be exported to PDF."); 
+                const content = `<article class="preview">${md.render(tab.content)}</article>`;
+                html2pdf().from(content).set({ filename: `${tab.title.split('.')[0]}.pdf` }).save(); 
+            };
+        };
+        
+        const toggleModal = (id, show) => {
+            const modal = $(id);
+            modal.classList.toggle('visible', show);
+            if(show && modal.querySelector('input')) modal.querySelector('input').focus();
+        };
+        
+        const updateMarkdownToolbar = () => {
+            const toolbar = $('#markdown-toolbar');
+            const tab = getActiveTab();
+            toolbar.classList.toggle('visible', tab?.type === 'markdown' && !tab.isWelcome);
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
